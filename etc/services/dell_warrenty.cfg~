@@ -1,0 +1,8 @@
+define service{
+        use                             warrenty-service
+        servicegroups                   dellwarrenty
+        hostgroup_name                  dell_servers
+	notifications_enabled		0
+        service_description             Dell Warrenty Check
+        check_command                   check_dellwarrenty
+        }

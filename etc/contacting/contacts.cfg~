@@ -1,0 +1,146 @@
+# Contact defination
+
+define contactgroup {
+        contactgroup_name               admins
+        alias                           Nagios Administrators
+        members                         bmedeiros,dwahab,rlau,rpaul,lreddy,bmedeiros_pager,lreddy_pager
+}
+
+
+define contactgroup {
+        contactgroup_name               storage-admins
+        alias                           NFS and Storage Administrators
+        members                         bmedeiros,lreddy
+}
+
+define contactgroup {
+        contactgroup_name               Neova
+        alias                           Neova
+        members                         dwahab,rpaul,rlau,bmedeiros,lreddy
+}
+
+
+# New group for Windows server
+define contactgroup {
+        contactgroup_name               win-admins
+        alias                           Windows Admins
+        members                         lreddy,bmedeiros
+}
+
+define contactgroup {
+        contactgroup_name               network-admins
+        alias                           Network Admins
+        members                         lreddy,bmedeiros
+}
+
+define contact {
+        contact_name                    nagios-admin
+        alias                           Nagios Admin
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    w,u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           noc-monitor@ramp.com
+}
+
+define contact {
+        contact_name                    bmedeiros
+        alias                           bmedeiros
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    w,u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           bmedeiros@ramp.com
+}
+
+define contact {
+        contact_name                    bmedeiros_pager
+        alias                           bmedeiros_pager
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           5082078773@vtext.com
+}
+
+
+define contact {
+        contact_name                    dwahab
+        alias                           dwahab
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           dwahab@ramp.com
+}
+
+
+define contact {
+        contact_name                    lreddy
+        alias                           lreddy
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    w,u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           lreddy@ramp.com
+}
+
+define contact {
+        contact_name                    lreddy_pager
+        alias                           lreddy_pager
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           7742840359@tmomail.net
+}
+
+
+define contact {
+        contact_name                    dwahab404
+        alias                           dwahab404
+        service_notification_period     Neova
+        host_notification_period        Neova
+        service_notification_options    w,u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           dwahab@ramp.com
+}
+
+
+define contact {
+        contact_name                    rlau
+        alias                           rlau
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           rlau@ramp.com
+}
+define contact {
+        contact_name                    rpaul
+        alias                           rpaul
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-by-email
+        host_notification_commands      host-notify-by-email
+        email                           rpjohnson@ramp.com
+}
+

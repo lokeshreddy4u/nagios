@@ -1,0 +1,28 @@
+#!/bin/sh
+# IMPORTANT, do not forget the ” ” when using this command as per example below
+# example usage:
+# ./check_jmx_perfdata “-U service:jmx:rmi:///jndi/rmi://localhost:9003/jmxrmi –O #Catalina:type=ThreadPool,name=http-8080 -A currentThreadCount”
+# grab the original output from the check_jmx plugin
+plugin_output=$(/usr/local/nagios/libexec/check_jmx $1)
+# set the variables, where metric = attribute being monitored
+# value = numeric value of the attribute
+# result = OK/WARNING/CRITICAL/UNKNOWN state
+metric=$(echo $plugin_output | cut -d ” ” -f 4)
+value=$(echo $plugin_output | cut -d ” ” -f 6)
+result=$(echo $plugin_output | cut -d ” ” -f 2)
+# output the result with the added perfdata output
+echo “$plugin_output | $metric=$value”
+
+case “$result” in
+OK)
+exit 0
+; ;
+WARNING)
+exit 1
+;  ;
+CRITICAL)
+exit 2
+; ;
+UNKNOWN)
+exit 3
+esac

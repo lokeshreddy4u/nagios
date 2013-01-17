@@ -1,0 +1,178 @@
+#!/bin/bash
+
+# check_dell_powerconnect
+# Description : Check the status of DELL PowerConnect Switch
+# Version : 2.0
+# Author : Jochem van den Anker (original script Yoann LAMY)
+# Thanx to: Lorentz Casimir Lyceum Eindhoven
+# Licence : GPLv2
+
+# Commands
+CMD_BASENAME="/bin/basename"
+CMD_SNMPGET="/usr/bin/snmpget"
+CMD_SNMPWALK="/usr/bin/snmpwalk"
+CMD_AWK="/usr/bin/awk"
+CMD_GREP="/bin/grep"
+CMD_EXPR="/usr/bin/expr"
+
+# Script name
+SCRIPTNAME=`$CMD_BASENAME $0`
+
+# Version
+VERSION="2.0"
+
+# Plugin return codes
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+
+# OID's
+OID_FIRMWARE=".1.3.6.1.4.1.674.10895.3000.1.2.100.4.0"
+OID_MODEL=".1.3.6.1.4.1.674.10895.3000.1.2.100.1.0"
+OID_UPTIME="1.3.6.1.2.1.1.3.0"
+OID_PORTS_STATE="1.3.6.1.2.1.2.2.1.8"
+
+# Default variables
+DESCRIPTION="Unknown"
+STATE=$STATE_UNKNOWN
+PERFDATA=""
+CPU_TEMP=""
+NUMBER_PROC=0
+
+# Default options
+COMMUNITY="public"
+HOSTNAME="127.0.0.1"
+TYPE="firmware"
+DISK=1
+WARNING=0
+CRITICAL=0
+
+# Option processing
+print_usage() {
+  echo "Usage: ./check_dell_powerconnect -H 127.0.0.1 -C public -t portcheck -p 1"
+  echo "  $SCRIPTNAME -H ADDRESS"
+  echo "  $SCRIPTNAME -C STRING"
+  echo "  $SCRIPTNAME -t STRING"
+  echo "  $SCRIPTNAME -w INTEGER"
+  echo "  $SCRIPTNAME -c INTEGER"
+  echo "  $SCRIPTNAME -p INTEGER"
+  echo "  $SCRIPTNAME -h"
+  echo "  $SCRIPTNAME -V"
+}
+
+print_version() {
+  echo $SCRIPTNAME version $VERSION
+  echo ""
+  echo "This nagios plugin comes with ABSOLUTELY NO WARRANTY."
+  echo "You may redistribute copies of this plugin under the terms of the GNU General Public License v2."
+}
+
+print_help() {
+  print_version
+  echo ""
+  print_usage
+  echo ""
+  echo "Check the status of a DELL PowerConnect Switch"
+  echo ""
+  echo "-H ADDRESS"
+  echo "   Name or IP address of host (default: 127.0.0.1)"
+  echo "-C STRING"
+  echo "   Community name for the host's SNMP agent (default: public)"
+  echo "-t STRING"
+  echo "   Different status (uptime, firmware, model, ports, portcheck)"
+  echo "-w INTEGER"
+  echo "   Warning level (not available at this moment)"
+  echo "-c INTEGER"
+  echo "   Critical level (not available at this moment)"
+  echo "-p INTEGER"
+  echo "   Portnumber"
+  echo "-h"
+  echo "   Print this help screen"
+  echo "-V"
+  echo "   Print version and license information"
+  echo ""
+  echo ""
+  echo "This plugin uses the 'snmpget' command and the 'snmpwalk' command included with the NET-SNMP package."
+  echo "This plugin support performance data output."
+  echo "If the percentage of the warning level and the critical level are set to 0, then the script returns an OK state."
+}
+
+while getopts H:C:t:d:w:c:p:hV OPT
+do
+  case $OPT in
+    H) HOSTNAME="$OPTARG" ;;
+    C) COMMUNITY="$OPTARG" ;;
+    t) TYPE="$OPTARG" ;;
+    w) WARNING="$OPTARG" ;;
+    c) CRITICAL="$OPTARG" ;;
+    p) PORT="$OPTARG" ;;
+    h)
+      print_help
+      exit $STATE_UNKNOWN
+      ;;
+    V)
+      print_version
+      exit $STATE_UNKNOWN
+      ;;
+   esac
+done
+
+# Plugin processing
+
+if [ $TYPE = "firmware" ]; then
+  CODE=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -Ovq $HOSTNAME "${OID_FIRMWARE}"`
+  if [ "$CODE" != '' ]; then
+  	STATE=$STATE_OK;
+  else
+	STATE=$STATE_UNKNOWN;
+  fi
+  DESCRIPTION="Firmware: $CODE";
+
+elif [ $TYPE = "model" ]; then
+  CODE=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -Ovq $HOSTNAME "${OID_MODEL}"`
+  if [ "$CODE" != '' ]; then
+  	STATE=$STATE_OK;
+  else
+	STATE=$STATE_UNKNOWN;
+  fi
+  DESCRIPTION="Model: $CODE";
+
+elif [ $TYPE = "uptime" ]; then
+  CODE=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -Ovq $HOSTNAME "${OID_UPTIME}"`
+  if [ "$CODE" != '' ]; then
+	DESCRIPTION="Uptime: $CODE";
+  	STATE=$STATE_OK;
+  else
+	DESCRIPTION="Down";
+	STATE=$STATE_CRITICAL;
+  fi
+
+elif [ $TYPE = "ports" ]; then
+  CODE=`$CMD_SNMPWALK -t 2 -r 2 -v 1 -c $COMMUNITY -Ovq $HOSTNAME "${OID_PORTS_STATE}"`
+  PORTSUP=`echo $CODE | awk -F "up" ' { print NF-1 } '`
+  PORTSDOWN=`echo $CODE | awk -F "down" ' { print NF-1 } '`
+  if [ "$PORTSUP" -ge 0 ] && [ "$PORTSDOWN" -ge 0 ]; then
+	  DESCRIPTION="Ports: Up: $PORTSUP Down: $PORTSDOWN";
+	  STATE=$STATE_OK;
+  else
+	  DESCRIPTION="Ports: Up: UNKNOWN Down: UNKNOWN";
+	  STATE=$STATE_UNKNOWN;
+  fi
+elif [ $TYPE = "portcheck" ]; then
+  CODE=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -Ovq $HOSTNAME "${OID_PORTS_STATE}.${PORT}"`
+  if [ "$CODE" != '' ]; then 
+	DESCRIPTION="Status port $PORT: $CODE";
+	if [ "$CODE" == 'up' ]; then
+  	STATE=$STATE_OK;
+	else
+	STATE=$STATE_CRITIAL;
+	fi
+   else
+	DESCRIPTION="Unknown port";
+	STATE=$STATE_UNKNOWN;
+   fi
+fi
+
+echo $DESCRIPTION
+exit $STATE

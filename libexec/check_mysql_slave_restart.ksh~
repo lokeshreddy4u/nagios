@@ -1,0 +1,35 @@
+#!/bin/ksh
+
+HOST=$1
+ADMINUSER="root"
+ADMINPW="aibuild"
+SLAVEUSER="nagiosslave"
+SLAVEPW="guest"
+
+
+#echo "/usr/local/nagios/libexec/check_mysql --check-slave -u $SLAVEUSER -p $SLAVEPW -H $HOST"
+CHECKOUT=`/usr/local/nagios/libexec/check_mysql --check-slave -u $SLAVEUSER -p $SLAVEPW -H $HOST`
+RES=$?
+
+if [ $RES = 0 ]; then
+
+    # everthing's ok
+    echo "OK Slave on host ${HOST} is looking good. $CHECKOUT"
+    return 0
+
+else
+    # trying to restart slave
+    #echo "echo \"slave start;\" | mysql -h $HOST -u $ADMINUSER -p${ADMINPW}"
+    RESTARTOUT=`echo "slave start;" | mysql -h $HOST -u $ADMINUSER -p${ADMINPW}`
+    RES=$?
+
+    if [ $RES = 0 ]; then
+        echo "WARNING: Restarting slave on host ${HOST} ${RESTARTOUT}"
+	return 1
+    else
+	echo "ERROR: Restaring slave on host ${HOST} failed: ${RESTARTOUT}"
+	return 2
+    fi
+
+fi
+

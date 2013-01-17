@@ -1,0 +1,91 @@
+#!/bin/ksh
+#------------------------------------------
+#
+# Created By : Jim DeNisco  
+# File Name : check_agent_host_fail.ksh
+# Creation Date : 08-02-2011
+# Last Modified : Wed 09 Feb 2011 02:38:34 PM EST
+# Category : Nagios monitoring tool
+# Purpose : check to see if agents failed
+# Version : 0.9
+#
+#------------------------------------------
+
+restart_count="/usr/local/nagios/var/tmp/restart_failed_agent"
+logfile="/usr/local/nagios/var/tmp/restart_failed_agent.log"
+rscript="/usr/local/nagios/libexec/check_agent_restart.ksh"
+
+
+# running mysql query to get failed agents
+
+test=`mysql -u nagios -pguest --host prod-write  <<EOFMYSQL
+use production
+select count(*) from agent where in_rotation and state in ('failed','stopped') and instance_name not rlike 'fastsearch';
+quit
+EOFMYSQL`
+
+results=$(echo $test| cut -d")" -f2)
+#results=6
+
+#checking to see if any agents failed
+if [[ "$results" -ne 0 ]];
+then
+	testhost=`mysql -N -u nagios -pguest --host prod-write  <<EOFMYSQL1
+	use production
+	select distinct host_name from agent where in_rotation and state in ('failed','stopped');
+	quit
+	EOFMYSQL1`
+
+	host_instance=`mysql -u nagios -pguest --host prod-write  <<EOFMYSQL1
+	use production
+	select distinct host_name, instance_name from agent where in_rotation and state in ('failed','stopped');
+	quit
+	EOFMYSQL1`
+
+	# if we have a failed host let get host_name  and try to restart if we have not tred to restart already 
+	if [[ $(cat $restart_count) = 1 ]];
+	then
+		# write message to nagios to send alert
+		echo -n  "CRITICAL agents failed on the following hosts $host_instance.
+ Nagios has already tried to restart with no luck.
+" 
+ 		return 2
+	else
+
+        #for badhost in $(echo $testhost|cut -d" " -f2)     --- only gets the fist host after host_name header
+        for badhost in $testhost
+        do
+
+		# special case: 029
+		if [ "_$badhost" = "_pod-worker-029" ]; then
+			continue
+		fi
+
+		echo " " >> $logfile
+	    	echo $badhost >> $logfile 
+	    	echo `date` >> $logfile
+	    	sshoutput=`sudo /usr/bin/ssh -t -T  $badhost "service podzinger restart"`
+		echo $sshoutput >> $logfile
+		echo "1" > $restart_count
+        done
+	
+	if [ "_$badhost" = "_pod-worker-029" ]; then
+		echo "WARNING skipping pod-worker-029 - ${host_instance}..."
+	else
+		echo  "OK $badhost restarting..."
+	fi
+
+	return 1
+	fi
+else
+	# if all is well then lets find out how many agents are running and get a count
+	runningcount=`mysql -u nagios -pguest --host prod-write  <<EOFMYSQL2
+	use production
+	select distinct count(*) from agent where state != "stopped" or "failed";
+	quit
+	EOFMYSQL2`
+
+	echo OK $runningcount agents are up and running
+	echo 0 > $restart_count
+	return 0
+fi
