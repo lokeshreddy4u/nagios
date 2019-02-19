@@ -18,7 +18,7 @@
 # Check succesfuly on Cisco PIX-515E and ASA-5500
 #
 # License: This nagios plugin comes with ABSOLUTELY NO WARRANTY. You may redistribute copies of
-# the plugins under the terms of the GNU General Public License. For more information about these 
+# the plugins under the terms of the GNU General Public License. For more information about these
 # matters, see the GNU General Public License.
 # Version: 2.2 (updated 07/03/2009)
 
@@ -26,7 +26,7 @@
 # Varialbles
 ############################################################
 usage="Usage: check_cisco_firewall.sh -H hostname -V version -M failover|sessions [-w|-c|-C|-l|-u|-a|-d|-h]
-### PARAMETERS ### 
+### PARAMETERS ###
 -H Hostname (IP adresse or DNS name)
 -V Version (1|2c|3)
 -M Mode (failover|sessions)
@@ -36,7 +36,10 @@ usage="Usage: check_cisco_firewall.sh -H hostname -V version -M failover|session
 -C Community (name) *** Use on Version 1|2 ***
 -l Login (NoAuthNoPriv | AuthNoPriv | AuthPriv) *** Use on Version 3 ***
 -u Username *** Use on Version 3 ***
--a Password *** Use on Version 3 ***
+-a auth key *** Use on Version 3 ***
+-A auth protocol md5|sha *** Use on Version 3 ***
+-p priv key *** Use on Version 3 ***
+-P priv protocol des|aes|aes128|3des|3desde  *** Use on Version 3 ***
 -d Debug mode
 -h Help (print command usage, and quit)"
 
@@ -97,14 +100,32 @@ case $version in
 				exit $result_value_Unknwon
 			fi
 			walk_param="-v $version -c $community $hostname";;
-		3) 
-			if [ "$login" == "" ] || [ "$user" == "" ] || [ "$password" == "" ]
+		3)
+			if [ "$login" == "" ] || [ "$user" == "" ] || [ "$auth_password" == "" ]
 			then
-				echo "Error - Missing parameters - login = $login : user = $user : password = $password"
+				echo "Error - Missing parameters - login = $login : user = $user : auth_password = $auth_password"
 				echo "$usage"
 				exit $result_value_Unknwon
 			fi
-			walk_param="-v $version -l $login -u $user -A $password $hostname";;
+            if [ "$auth_proto" == "" ]
+            then
+                auth_proto="md5"
+            fi
+            if [ "$priv_proto" == "" ]
+            then
+                priv_proto="des"
+            fi
+            if [ "$priv_password" == "" ]
+            then
+                priv_password=$auth_password
+            fi
+            if [ "$login" == "AuthPriv" ]
+            then
+			    walk_param="-v $version -l $login -u $user -A $auth_password -a $auth_proto -X $priv_password -x $priv_proto $hostname"
+            else
+                walk_param="-v $version -l $login -u $user -A $auth_password $hostname"
+            fi
+            ;;
 esac
 }
 
@@ -122,7 +143,7 @@ echo "Number of max sessions ever used : $Max_Used_Sessions"
 echo "### Global Values ###"
 echo "Sum values : Ok = $sum_value_Ok ; Warning = $sum_value_Warning ; Critical = $sum_value_Critical ; Unknown = $sum_value_Unknwon"
 echo "Nagios return : Ok = $result_value_Ok ; Warning = $result_value_Warning ; Critical = $result_value_Critical ; Unknown = $result_value_Unknwon"
-echo "Parameters : Hostname = $hostname ; Version = $version ; Community = $community ; Mode = $mode ; warning = $warning ; critical = $critical ; login = $login ; user = $user ; password = $password"
+echo "Parameters : Hostname = $hostname ; Version = $version ; Community = $community ; Mode = $mode ; warning = $warning ; critical = $critical ; login = $login ; user = $user ; auth_password = $auth_password ; auth_proto = $auth_proto ; priv_password = $priv_password ; priv_proto = $priv_proto"
 echo "*********************************************************************"
 }
 
@@ -232,7 +253,7 @@ sessions_max()
 	else
 		Max_Used_Sessions=`/usr/bin/snmpwalk $walk_param $mib_sessions_max | cut -d' ' -f4`
 	fi
-	
+
 	check_num $Max_Used_Sessions Max_Used_Sessions
 
 	if [ $Used_Sessions -gt $Max_Used_Sessions ]
@@ -267,7 +288,7 @@ comm_final="$comm_final - $Used_Sessions sessions (max : $Max_Used_Sessions) | C
 # Main Method
 ############################################################
 # Get Options and check parameters
-while getopts H:V:C:M:w:c:l:u:a:dh option;
+while getopts H:V:C:M:w:c:l:u:a:A:p:P:dh option;
 do
 	case $option in
 		H) hostname=$OPTARG;;
@@ -278,7 +299,10 @@ do
 		c) critical=$OPTARG;;
 		l) login=$OPTARG;;
 		u) user=$OPTARG;;
-		a) password=$OPTARG;;
+		a) auth_password=$OPTARG;;
+        A) auth_proto=$OPTARG;;
+        p) priv_password=$OPTARG;;
+        P) priv_proto=$OPTARG;;
 		d) debug=1;;
 		h) echo "$usage"
 		exit $result_Unknwon;;
@@ -288,7 +312,7 @@ done
 check_param
 
 
-### Mode 1 - Failover ### 
+### Mode 1 - Failover ###
 if [ "$mode" == "failover" ]
 then
 	# Functions lunch
@@ -297,7 +321,7 @@ then
 fi
 
 
-### Mode 2 - Sessions ### 
+### Mode 2 - Sessions ###
 if [ "$mode" == "sessions" ]
 then
 	# Parameters Checking
@@ -317,4 +341,3 @@ then
 fi
 
 function_exit
-
